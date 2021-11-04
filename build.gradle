@@ -1,0 +1,88 @@
+plugins {
+	id 'org.springframework.boot' version '2.2.4.RELEASE'
+	id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+	id 'com.palantir.docker' version '0.22.1'
+	id 'java'
+	id 'jacoco'
+  	id 'checkstyle'
+  	id "io.freefair.lombok" version "5.0.0-rc4"
+}
+
+group = 'com.mempool.server'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springCloudVersion', "Hoxton.SR1")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+	}
+}
+
+test {
+	useJUnitPlatform()
+}
+
+//Fails with less than 20% covering tests
+jacocoTestCoverageVerification	{
+	violationRules	{
+		rule	{
+			limit	{
+				minimum	=	0.2
+			}
+		}
+	}
+}
+
+//plugin checkstyle root file
+checkstyle {
+        configFile = rootProject.file('./checkstyle.xml')
+    }
+
+//Execute from command line: ./gradlew bootRun -Pargs=--spring.main.banner-mode=off,--customArgument=custom
+bootJar {
+    baseName = 'mempoolServer'
+    version =  '0.0.1-SNAPSHOT'
+}
+
+bootRun {
+    if (project.hasProperty('args')) {
+        args project.args.split(',')
+    }
+}
+
+// Recommended buy complicated
+//task unpack(type: Copy) {
+//    dependsOn bootJar
+//    from(zipTree(tasks.bootJar.outputs.files.singleFile))
+//    into("build/dependency")
+//}
+
+//docker {
+//    name "localhost:5000/mempoolServer:latest"
+//    copySpec.from(tasks.unpack.outputs).into("dependency")
+//    buildArgs(['DEPENDENCY': "dependency"])
+//}
+
+//Easy way
+docker {
+    name "localhost:5000/mempool_server:latest"
+    copySpec.from("build/libs/mempoolServer-0.0.1-SNAPSHOT.jar").into("app")
+    buildArgs(['DEPENDENCY': "app"])
+}
